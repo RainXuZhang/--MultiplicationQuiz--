@@ -1,4 +1,4 @@
-//Created by Rain
+//Created by Rain Zhang
 
 package main
 
