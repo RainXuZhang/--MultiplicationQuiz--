@@ -4,4 +4,4 @@ To use this program:
 2. Change the .txt file into a .go file.
 3. Then build and run the code using go build and ./MultiplicationQuiz.
 
-By the way, the latest version is 1.0.2.
+By the way, the latest version is 1.0.0.
