@@ -1,7 +1,7 @@
 This program was created using Go. 
-To use this program:
-1. Make sure you have Go installed on your computer.
-2. Change the .txt file into a .go file.
-3. Then build and run the code using go build and ./MultiplicationQuiz.
+Make sure to install Go before running this program.
 
+To use this program:
+1. Grab the binary file (Ignore the auto-generated source code)
+2. Run it.
 Latest release: 1.0.1.
