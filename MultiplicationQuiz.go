@@ -1,91 +1,114 @@
-//Created by Rain
-
 package main
 
 import (
-        "bufio"
-        "fmt"
-        "math/rand"
-        "os"
-        "strconv"
-        "time"
+	"bufio"
+	"fmt"
+	"math/rand"
+	"os"
+	"strconv"
+	"time"
 )
 
 func main() {
-        fmt.Println("Welcome to the Multiplication Quiz!")
-        fmt.Println("You will be asked to solve 5 multiplication problems.")
-        fmt.Println("Try to answer each question as quickly and accurately as possible.")
+	fmt.Println("Welcome to the Multiplication Quiz!")
 
-        // Difficulty selection
-        difficulty := selectDifficulty()
+	// Get user input for number of questions
+	numQuestions := getNumberOfQuestions()
 
-        // Create a new random source with a seed based on current time
-        source := rand.NewSource(time.Now().UnixNano())
-        // Create a new random number generator
-        r := rand.New(source)
+	// Get user input for number ranges
+	minRange, maxRange := getNumberRanges()
 
-        scanner := bufio.NewScanner(os.Stdin)
+	// Create a new random source with a seed based on current time
+	source := rand.NewSource(time.Now().UnixNano())
+	// Create a new random number generator
+	r := rand.New(source)
 
-        var totalQuestions, correctAnswers int
-        startTime := time.Now()
+	scanner := bufio.NewScanner(os.Stdin)
 
-        for i := 0; i < 5; i++ {
-                questionStart := time.Now()
-                num1, num2 := generateNumbers(difficulty, r)
-                answer := num1 * num2
+	var correctAnswers int
+	startTime := time.Now()
 
-                fmt.Printf("What is %d * %d? (You have %d seconds left)\n", num1, num2, int(time.Since(startTime))/1e9)
+	for i := 0; i < numQuestions; i++ {
+		questionStart := time.Now()
+		num1, num2 := generateNumbers(minRange, maxRange, r)
+		answer := num1 * num2
 
-                scanner.Scan()
-                input, err := strconv.Atoi(scanner.Text())
-                if err != nil {
-                        fmt.Println("Invalid input. Please enter a number.")
-                        i-- // Repeat the question if input is invalid
-                        continue
-                }
+		fmt.Printf("What is %d * %d? \n", num1, num2)
 
-                if input == answer {
-                        fmt.Println("Correct!")
-                        correctAnswers++
-                } else {
-                        fmt.Println("Incorrect. The answer is", answer)
-                }
-                totalQuestions++
-                fmt.Printf("Time taken for this question: %.2fs\n", time.Since(questionStart).Seconds())
-        }
+		scanner.Scan()
+		if err := scanner.Err(); err != nil {
+			fmt.Println("Error reading input:", err)
+			return
+		}
+		input, err := strconv.Atoi(scanner.Text())
+		if err != nil {
+			fmt.Println("Invalid input. Please enter a number.")
+			i-- // Repeat the question if input is invalid
+			continue
+		}
 
-        endTime := time.Now()
-        elapsedTime := endTime.Sub(startTime)
+		if input == answer {
+			fmt.Println("Correct!")
+			correctAnswers++
+		} else {
+			fmt.Println("Incorrect. The answer is", answer)
+		}
 
-        fmt.Printf("You got %d out of %d correct (%.2f%% accuracy).\n", correctAnswers, totalQuestions, float64(correctAnswers)/float64(totalQuestions)*100)
-        fmt.Printf("Total time taken: %.2fs\n", elapsedTime.Seconds())
+		fmt.Printf("Time taken for this question: %.2fs\n", time.Since(questionStart).Seconds())
+	}
+
+	endTime := time.Now()
+	elapsedTime := endTime.Sub(startTime)
+
+	fmt.Printf("You got %d out of %d correct (%.2f%% accuracy).\n", correctAnswers, numQuestions, float64(correctAnswers)/float64(numQuestions)*100)
+	fmt.Printf("Total time taken: %.2fs\n", elapsedTime.Seconds())
 }
 
-func selectDifficulty() int {
-        fmt.Println("Select difficulty level (enter the corresponding number):")
-        fmt.Println("1. Easy (1-5)")
-        fmt.Println("2. Medium (1-10)")
-        fmt.Println("3. Hard (1-12)")
-
-        scanner := bufio.NewScanner(os.Stdin)
-        scanner.Scan()
-        difficulty, err := strconv.Atoi(scanner.Text())
-        if err != nil || difficulty < 1 || difficulty > 3 {
-                fmt.Println("Invalid selection. Choosing Easy level by default.")
-                return 1
-        }
-        return difficulty
+func getNumberOfQuestions() int {
+	fmt.Print("Enter the total number of questions featured: ")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading input:", err)
+		return 5 // Default to 5 questions on error
+	}
+	numQuestions, err := strconv.Atoi(scanner.Text())
+	if err != nil || numQuestions <= 0 {
+		fmt.Println("Invalid input. Setting number of questions to 5 by default.")
+		return 5
+	}
+	return numQuestions
 }
 
-func generateNumbers(difficulty int, r *rand.Rand) (int, int) {
-        switch difficulty {
-        case 1:
-                return r.Intn(5) + 1, r.Intn(5) + 1
-        case 2:
-                return r.Intn(10) + 1, r.Intn(10) + 1
-        case 3:
-                return r.Intn(12) + 1, r.Intn(12) + 1
-        default:
-                return 1, 1 // Should never reach here, but returning default values in case
-        }
+func getNumberRanges() (int, int) {
+	fmt.Print("Enter the minimum factor: ")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading input:", err)
+		return 1, 10 // Default to range 1-10 on error
+	}
+	minRange, err := strconv.Atoi(scanner.Text())
+	if err != nil || minRange <= 0 {
+		fmt.Println("Invalid minimum range. Setting minimum range to 1 by default.")
+		minRange = 1
+	}
+
+	fmt.Print("Enter the maximum factor: ")
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading input:", err)
+		return 1, 10 // Default to range 1-10 on error
+	}
+	maxRange, err := strconv.Atoi(scanner.Text())
+	if err != nil || maxRange <= minRange {
+		fmt.Println("Invalid maximum range. Setting maximum range to 10 by default.")
+		maxRange = 10
+	}
+
+	return minRange, maxRange
+}
+
+func generateNumbers(minRange, maxRange int, r *rand.Rand) (int, int) {
+	return r.Intn(maxRange-minRange+1) + minRange, r.Intn(maxRange-minRange+1) + minRange
 }
