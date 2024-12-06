@@ -16,7 +16,7 @@ func main() {
         fmt.Println("You will be asked to solve 5 multiplication problems.")
         fmt.Println("Try to answer each question as quickly and accurately as possible.")
 
-        // Difficulty level selection
+        // Difficulty selection
         difficulty := selectDifficulty()
 
         // Create a new random source with a seed based on current time
