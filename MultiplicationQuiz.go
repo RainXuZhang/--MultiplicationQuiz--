@@ -1,114 +1,213 @@
 package main
 
 import (
-        "bufio"
-        "fmt"
-        "math/rand"
-        "os"
-        "strconv"
-        "time"
+	"bufio"
+	"crypto/rand"
+	"fmt"
+	"math/big"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
+type QuizStats struct {
+	TotalQuestions int
+	CorrectAnswers int
+	CurrentStreak  int
+	MaxStreak      int
+}
+
 func main() {
-        fmt.Println("Welcome to the Multiplication Quiz!")
+	fmt.Println("Created by Rain Zhang\nVersion 1.0.2")
+	fmt.Println("Welcome to the Multiplication Quiz!")
 
-        // Get user input for number of questions
-        numQuestions := getNumberOfQuestions()
+	// Create a buffered scanner for more efficient input
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // Increase buffer size
 
-        // Get user input for number ranges
-        minRange, maxRange := getNumberRanges()
+	// Get user input for number of questions
+	numQuestions := getNumberOfQuestions(scanner)
 
-        // Create a new random source with a seed based on current time
-        source := rand.NewSource(time.Now().UnixNano())
-        // Create a new random number generator
-        r := rand.New(source)
+	// Get user input for number ranges
+	minRange, maxRange := getNumberRanges(scanner)
 
-        scanner := bufio.NewScanner(os.Stdin)
+	// Initialize quiz statistics
+	stats := &QuizStats{}
+	stats.TotalQuestions = numQuestions
 
-        var correctAnswers int
-        startTime := time.Now()
+	// Start the quiz
+	startTime := time.Now()
+	runQuiz(scanner, numQuestions, minRange, maxRange, stats)
 
-        for i := 0; i < numQuestions; i++ {
-                questionStart := time.Now()
-                num1, num2 := generateNumbers(minRange, maxRange, r)
-                answer := num1 * num2
-
-                fmt.Printf("What is %d * %d? \n", num1, num2)
-
-                scanner.Scan()
-                if err := scanner.Err(); err != nil {
-                        fmt.Println("Error reading input:", err)
-                        return
-                }
-                input, err := strconv.Atoi(scanner.Text())
-                if err != nil {
-                        fmt.Println("Invalid input. Please enter a number.")
-                        i-- // Repeat the question if input is invalid
-                        continue
-                }
-
-                if input == answer {
-                        fmt.Println("Correct!")
-                        correctAnswers++
-                } else {
-                        fmt.Println("Incorrect. The answer is", answer)
-                }
-
-                fmt.Printf("Time taken for this question: %.2fs\n", time.Since(questionStart).Seconds())
-        }
-
-        endTime := time.Now()
-        elapsedTime := endTime.Sub(startTime)
-
-        fmt.Printf("You got %d out of %d correct (%.2f%% accuracy).\n", correctAnswers, numQuestions, float64(correctAnswers)/float64(numQuestions)*100)
-        fmt.Printf("Total time taken: %.2fs\n", elapsedTime.Seconds())
+	// Display final results
+	displayResults(stats, startTime)
 }
 
-func getNumberOfQuestions() int {
-        fmt.Print("Enter the number of questions: ")
-        scanner := bufio.NewScanner(os.Stdin)
-        scanner.Scan()
-        if err := scanner.Err(); err != nil {
-                fmt.Println("Error reading input:", err)
-                return 5 // Default to 5 questions on error
-        }
-        numQuestions, err := strconv.Atoi(scanner.Text())
-        if err != nil || numQuestions <= 0 {
-                fmt.Println("Invalid input. Setting number of questions to 5 by default.")
-                return 5
-        }
-        return numQuestions
+func runQuiz(scanner *bufio.Scanner, numQuestions, minRange, maxRange int, stats *QuizStats) {
+	for i := 0; i < numQuestions; i++ {
+		// Generate cryptographically secure random numbers
+		num1 := generateSecureRandomNumber(minRange, maxRange)
+		num2 := generateSecureRandomNumber(minRange, maxRange)
+		answer := num1 * num2
+
+		// Track question performance
+		questionCorrect := askQuestion(scanner, num1, num2, answer, stats)
+
+		// Update streak
+		if questionCorrect {
+			stats.CurrentStreak++
+			stats.MaxStreak = max(stats.MaxStreak, stats.CurrentStreak)
+			stats.CorrectAnswers++
+		} else {
+			stats.CurrentStreak = 0
+		}
+	}
 }
 
-func getNumberRanges() (int, int) {
-        fmt.Print("Enter the minimum range: ")
-        scanner := bufio.NewScanner(os.Stdin)
-        scanner.Scan()
-        if err := scanner.Err(); err != nil {
-                fmt.Println("Error reading input:", err)
-                return 1, 10 // Default to range 1-10 on error
-        }
-        minRange, err := strconv.Atoi(scanner.Text())
-        if err != nil || minRange <= 0 {
-                fmt.Println("Invalid minimum range. Setting minimum range to 1 by default.")
-                minRange = 1
-        }
+func askQuestion(scanner *bufio.Scanner, num1, num2, answer int, stats *QuizStats) bool {
+	maxAttempts := 3
+	attempts := 0
 
-        fmt.Print("Enter the maximum range: ")
-        scanner.Scan()
-        if err := scanner.Err(); err != nil {
-                fmt.Println("Error reading input:", err)
-                return 1, 10 // Default to range 1-10 on error
-        }
-        maxRange, err := strconv.Atoi(scanner.Text())
-        if err != nil || maxRange <= minRange {
-                fmt.Println("Invalid maximum range. Setting maximum range to 10 by default.")
-                maxRange = 10
-        }
+	for attempts < maxAttempts {
+		fmt.Printf("What is %d * %d? ", num1, num2)
 
-        return minRange, maxRange
+		// Provide hints based on attempt number
+		if attempts > 0 {
+			provideHint(num1, num2, answer, attempts)
+		}
+
+		scanner.Scan()
+		input := strings.TrimSpace(scanner.Text())
+
+		// Allow user to skip with hint
+		if input == "hint" {
+			attempts++
+			continue
+		}
+
+		// Validate input
+		userAnswer, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Println("Invalid input. Please enter a number.")
+			attempts++
+			continue
+		}
+
+		// Check answer
+		if userAnswer == answer {
+			fmt.Println("Correct!")
+			return true
+		}
+
+		fmt.Println("Incorrect.")
+		attempts++
+	}
+
+	fmt.Printf("The correct answer was %d * %d = %d\n", num1, num2, answer)
+	return false
 }
 
-func generateNumbers(minRange, maxRange int, r *rand.Rand) (int, int) {
-        return r.Intn(maxRange-minRange+1) + minRange, r.Intn(maxRange-minRange+1) + minRange
+func provideHint(num1, num2, answer, attempt int) {
+	switch attempt {
+	case 1:
+		fmt.Println("Hint 1: Range Check")
+		fmt.Printf("The answer is between %d and %d\n",
+			min(num1*num2, num2*num1),
+			max(num1*num2, num2*num1))
+	case 2:
+		fmt.Println("Hint 2: Multiplication Breakdown")
+		fmt.Printf("Hint: %d is one of the factors\n",
+			[]int{num1, num2}[attempt%2])
+	}
+}
+
+func generateSecureRandomNumber(min, max int) int {
+	// Use cryptographically secure random number generation
+	delta := max - min + 1
+	bigDelta := big.NewInt(int64(delta))
+
+	// Generate a cryptographically secure random number
+	n, err := rand.Int(rand.Reader, bigDelta)
+	if err != nil {
+		// Fallback to time-based random if secure generation fails
+		return min + time.Now().Nanosecond()%delta
+	}
+
+	return min + int(n.Int64())
+}
+
+func getNumberOfQuestions(scanner *bufio.Scanner) int {
+	fmt.Print("Enter the number of questions (default 5, max 50): ")
+	scanner.Scan()
+	input := strings.TrimSpace(scanner.Text())
+
+	if input == "" {
+		return 5
+	}
+
+	numQuestions, err := strconv.Atoi(input)
+	if err != nil || numQuestions <= 0 {
+		fmt.Println("Invalid input. Using default of 5 questions.")
+		return 5
+	}
+
+	if numQuestions > 50 {
+		fmt.Println("Maximum of 50 questions allowed. Using 50.")
+		return 50
+	}
+
+	return numQuestions
+}
+
+func getNumberRanges(scanner *bufio.Scanner) (int, int) {
+	fmt.Print("Enter the minimum range (default 1): ")
+	scanner.Scan()
+	minInput := strings.TrimSpace(scanner.Text())
+	minRange := 1
+	if minInput != "" {
+		min, err := strconv.Atoi(minInput)
+		if err == nil && min > 0 {
+			minRange = min
+		}
+	}
+
+	fmt.Print("Enter the maximum range (default 10): ")
+	scanner.Scan()
+	maxInput := strings.TrimSpace(scanner.Text())
+	maxRange := 10
+	if maxInput != "" {
+		max, err := strconv.Atoi(maxInput)
+		if err == nil && max >= minRange {
+			maxRange = max
+		}
+	}
+
+	return minRange, maxRange
+}
+
+func displayResults(stats *QuizStats, startTime time.Time) {
+	elapsedTime := time.Since(startTime)
+
+	fmt.Println("\n--- Quiz Results ---")
+	fmt.Printf("Total Questions: %d\n", stats.TotalQuestions)
+	fmt.Printf("Correct Answers: %d\n", stats.CorrectAnswers)
+	fmt.Printf("Accuracy: %.2f%%\n",
+		float64(stats.CorrectAnswers)/float64(stats.TotalQuestions)*100)
+	fmt.Printf("Max Streak: %d\n", stats.MaxStreak)
+	fmt.Printf("Total Time: %.2f seconds\n", elapsedTime.Seconds())
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
